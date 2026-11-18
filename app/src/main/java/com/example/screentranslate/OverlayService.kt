@@ -29,6 +29,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import com.google.mlkit.common.model.DownloadConditions
@@ -55,7 +56,7 @@ class OverlayService : Service() {
     private var latestImage: Image? = null
     private val lock = Any()
 
-    private var button: TextView? = null
+    private var button: View? = null
     private var resultView: FrameLayout? = null
 
     private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
@@ -100,7 +101,8 @@ class OverlayService : Service() {
         val n = Notification.Builder(this, "st")
             .setContentTitle("مترجم الشاشة يعمل")
             .setContentText("اضغط مطولاً على الزر العائم للإيقاف")
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setColor(0xFF2979FF.toInt())
             .build()
         if (Build.VERSION.SDK_INT >= 29) {
             startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
@@ -137,15 +139,18 @@ class OverlayService : Service() {
 
     private fun showButton() {
         val dp = resources.displayMetrics.density
-        val size = (56 * dp).toInt()
-        val tv = TextView(this).apply {
-            text = "ترجم"
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-            background = GradientDrawable().apply {
+        val size = (64 * dp).toInt()
+        val tv = ImageView(this).apply {
+            setImageResource(R.drawable.ic_translate)
+            val p = (14 * dp).toInt()
+            setPadding(p, p, p, p)
+            alpha = 0.95f
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                intArrayOf(0xFF2979FF.toInt(), 0xFF7C4DFF.toInt())
+            ).apply {
                 shape = GradientDrawable.OVAL
-                setColor(0xE61565C0.toInt())
+                setStroke((2 * dp).toInt(), 0xCCFFFFFF.toInt())
             }
         }
         val params = WindowManager.LayoutParams(
@@ -238,14 +243,18 @@ class OverlayService : Service() {
 
     private fun showResult(blocks: List<Text.TextBlock>, results: Array<String?>) {
         val root = FrameLayout(this)
-        root.setBackgroundColor(0x33000000)
+        root.setBackgroundColor(0x40000000)
         val dp = resources.displayMetrics.density
         blocks.forEachIndexed { i, b ->
             val r = b.boundingBox ?: return@forEachIndexed
             val tv = TextView(this).apply {
                 text = results[i] ?: b.text
-                setTextColor(Color.parseColor("#111111"))
-                setBackgroundColor(Color.parseColor("#F2F5F5F5"))
+                setTextColor(Color.parseColor("#0D1B2A"))
+                background = GradientDrawable().apply {
+                    setColor(Color.parseColor("#FAFFFFFF"))
+                    cornerRadius = 8 * dp
+                    setStroke(maxOf((1 * dp).toInt(), 1), Color.parseColor("#802979FF"))
+                }
                 textDirection = View.TEXT_DIRECTION_RTL
                 gravity = Gravity.END or Gravity.CENTER_VERTICAL
                 setPadding((3 * dp).toInt(), 0, (3 * dp).toInt(), 0)
@@ -261,6 +270,22 @@ class OverlayService : Service() {
             root.addView(tv, lp)
         }
         root.setOnClickListener { dismissResult() }
+
+        val closeSize = (52 * dp).toInt()
+        val close = ImageView(this).apply {
+            setImageResource(R.drawable.ic_close)
+            val p = (14 * dp).toInt()
+            setPadding(p, p, p, p)
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(0xF0263238.toInt())
+            }
+            setOnClickListener { dismissResult() }
+        }
+        val closeLp = FrameLayout.LayoutParams(
+            closeSize, closeSize, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+        ).apply { bottomMargin = (72 * dp).toInt() }
+        root.addView(close, closeLp)
 
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
